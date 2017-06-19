@@ -2,6 +2,11 @@ setwd("D:/Scientel")
 library(caret)
 library(dplyr)
 library(pROC)
+library(ROSE)
+library(randomForest)
+library(mlbench)
+library(caret)
+library(caretEnsemble)
 
 
 tr_raw = read.csv("diabetes_dataset_insample.csv")
@@ -40,24 +45,18 @@ prop.table(table(tr$compl.))
 
 tr_rose <- ROSE(compl. ~ ., data =tr, seed = 1)$data
 prop.table(table(tr_rose$compl.))
-library(ROSE)
-library(randomForest)
-
-rf = randomForest(compl. ~., tr_rose)
 
 
+up = upSample(x = tr, y=tr$compl., yname = "1")
+str(up)
+table(up$compl.)
+
+rf = randomForest(compl. ~., tr_rose,classwt = c(0.5,2.5))
 pred_val = predict(rf,val)
 table(val$compl., pred_val)
 
 
-test_roc <- function(model, data) {
-  
-  roc(data$Class,
-      predict(model, data, type = "prob")[, "Class2"])
-  
-}
 
-rf %>%
   roc(as.numeric(val$compl.), as.numeric(pred_val)) %>%
   auc()
 
@@ -69,56 +68,28 @@ model_weights <- ifelse(tr$compl. == "1",
 
 # Use the same seed to ensure same cross-validation splits
 
-ctrl$seeds <- orig_fit$control$seeds
-
-# Build weighted model
-ctrl <- trainControl(method = "repeatedcv",
-                     number = 10,
-                     repeats = 5,
-                     summaryFunction = twoClassSummary,
-                     classProbs = TRUE)
-
-
+levels(tr_rose$compl.) = c("Z","O")
 weighted_fit <- train(compl. ~ .,
-                      data = tr,
+                      data = tr_rose,
                       method = "gbm",
-                      verbose = FALSE,
-                      weights = model_weights,
+                      verbose = T,
                       metric = "ROC",
                       trControl = ctrl)
+pred_val = predict(weighted_fit,val)
 
-# Build down-sampled model
+levels()
+table(val$compl., pred_val)
 
-ctrl$sampling <- "down"
+# create submodels
+control <- trainControl(method="repeatedcv", number=10, repeats=3, savePredictions=TRUE, classProbs=TRUE)
+algorithmList <- c('lda', 'rpart', 'glm', 'knn', 'svmRadial')
+set.seed(seed)
+models <- caretList(compl. ~., data=tr_rose, trControl=control, methodList=algorithmList)
+results <- resamples(models)
+summary(results)
+dotplot(results)
 
-down_fit <- train(Class ~ .,
-                  data = imbal_train,
-                  method = "gbm",
-                  verbose = FALSE,
-                  metric = "ROC",
-                  trControl = ctrl)
 
-# Build up-sampled model
-
-ctrl$sampling <- "up"
-
-up_fit <- train(Class ~ .,
-                data = imbal_train,
-                method = "gbm",
-                verbose = FALSE,
-                metric = "ROC",
-                trControl = ctrl)
-
-# Build smote model
-
-ctrl$sampling <- "smote"
-
-smote_fit <- train(Class ~ .,
-                   data = imbal_train,
-                   method = "gbm",
-                   verbose = FALSE,
-                   metric = "ROC",
-                   trControl = ctrl)
 
 #http://dpmartin42.github.io/blogposts/r/imbalanced-classes-part-1
 
