@@ -30,7 +30,19 @@ tr_raw$num_pre_dx_grps = as.numeric(tr_raw$num_pre_dx_grps)
 summary(tr_raw)
 tr_raw$ID = NULL
 tr_raw$state = NULL
+tr_raw$ID = NULL
+tr_raw$state = NULL
+tr_raw$num_tx_dx_grps = NULL
+tr_raw$num_tx_rx_grps = NULL
+tr_raw$num_post_dx_grps = NULL
+tr_raw$num_post_rx_grps = NULL
 
+tr_raw$tx_med_charges = NULL
+tr_raw$tx_rx_charges = NULL
+tr_raw$tx_tot_charges = NULL
+tr_raw$post_med_charges = NULL
+tr_raw$post_rx_charges = NULL
+tr_raw$post_tot_charges = NULL
 
 
 validation_index <- createDataPartition(tr_raw$compl., p=0.80, list=FALSE)
